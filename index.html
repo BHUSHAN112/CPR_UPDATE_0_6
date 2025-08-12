@@ -604,14 +604,8 @@ startTrainingBtn.addEventListener('click', () => {
 stopTrainingBtn.addEventListener('click', () => {
   logging = false;
   stopTrainingBtn.style.display = 'none';
-  if (sessionData.length > 0) {
-    downloadBtn.style.display = 'inline-block';
-    nextSessionBtn.style.display = 'inline-block'; // Show new session button
-  }
-
-  logging = false;
-  stopTrainingBtn.style.display = 'none';
   if (sessionData.length > 0) downloadBtn.style.display = 'inline-block';
+  if (sessionData.length > 0) { nextSessionBtn.style.display = 'inline-block'; }
 });
 
 /* CSV export updated to include peaks & depth (fixed escapes) */
