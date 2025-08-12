@@ -1,0 +1,813 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<title>CPR.AI Bluetooth - Jeevtronics</title>
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<link rel="manifest" href="manifest.json" />
+<style>
+  :root {
+    --brand-dark: #1b5e20;
+    --brand-mid:  #2e7d32;
+    --brand-light:#66bb6a;
+    --panel-white: rgba(255,255,255,0.92);
+  }
+
+  /* Page */
+  body {
+    font-family: Arial, sans-serif;
+    background: linear-gradient(135deg, var(--brand-mid), var(--brand-light));
+    color: #263238;
+    margin: 0;
+    padding: 22px;
+    box-sizing: border-box;
+  }
+
+  /* Header row: branding left, logout right */
+  .app-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+    margin-bottom: 12px;
+  }
+
+  .branding {
+    color: white;
+    font-weight: 800;
+    font-size: 18px;
+    letter-spacing: 1px;
+    text-shadow: 0 2px 6px rgba(0,0,0,0.2);
+    display:flex;
+    align-items:center;
+    gap:10px;
+  }
+  .branding img { width:36px; height:36px; border-radius:6px; }
+
+  #logoutBtn {
+    background: #d32f2f;
+    color: white;
+    padding: 8px 14px;
+    font-size: 14px;
+    border: none;
+    border-radius: 10px;
+    cursor: pointer;
+    box-shadow: 0 6px 18px rgba(0,0,0,0.2);
+  }
+  #logoutBtn:hover { background: #b71c1c; }
+
+  /* Main UI layout */
+  .controls {
+    margin-bottom: 10px;
+  }
+  .btn {
+    padding: 10px 18px;
+    margin: 6px;
+    font-size: 15px;
+    border: none;
+    border-radius: 8px;
+    cursor: pointer;
+  }
+  #connectBtn { background: #2e7d32; color: white; }
+  #disconnectBtn { background: #d32f2f; color: white; display: none; }
+  #startTrainingBtn { background: #2e7d32; color: white; display: none; }
+  #stopTrainingBtn { background: #f57c00; color: white; display: none; }
+  #downloadBtn { background: #fbc02d; color: black; display: none; }
+  #traineeName { padding: 8px; font-size: 14px; display: none; border-radius: 6px; border: 1px solid #ccc; }
+
+  .status-dot {
+    display: inline-block;
+    width: 12px; height: 12px;
+    border-radius: 50%;
+    background: #d32f2f;
+    margin-left: 8px;
+  }
+
+  /* panels */
+  .panel {
+    background: var(--panel-white);
+    border-radius: 14px;
+    padding: 16px;
+    box-shadow: 0 12px 40px rgba(0,0,0,0.12);
+    margin-bottom: 18px;
+    max-width: 980px;
+    margin-left: auto;
+    margin-right: auto;
+  }
+
+  /* Depth (vertical) */
+  .depth-wrapper {
+    display:flex;
+    flex-direction: column;
+    align-items:center;
+    justify-content:center;
+    gap:10px;
+    min-height: 160px;
+  }
+  .depth-value {
+    font-size: 1.1rem;
+    font-weight:700;
+    color: #263238;
+  }
+  .depth-track {
+    width: 56px;
+    max-width: 56px;
+    height: 260px;
+    border-radius: 30px;
+    position: relative;
+    overflow: hidden;
+    background: rgba(0,0,0,0.04);
+    box-shadow: inset 0 2px 10px rgba(0,0,0,0.06);
+  }
+  .depth-fill {
+    position: absolute;
+    bottom: 0;
+    left: 0;
+    right: 0;
+    height: 0%;
+    border-radius: 30px 30px 0 0;
+    background: linear-gradient(to top, #d32f2f 0%, #fbc02d 50%, #388e3c 100%);
+    box-shadow: inset 0 2px 10px rgba(255,255,255,0.12);
+    transition: height 0.9s cubic-bezier(.2,.9,.2,1);
+  }
+
+  /* Gauge */
+  .gauge-container {
+    width: 540px;
+    height: 320px;
+    margin: 0 auto;
+    position: relative;
+  }
+  svg { width: 100%; height: 100%; overflow: visible; }
+  .needle { stroke-width: 4; transform-origin: 270px 250px; transition: transform 0.6s ease-in-out, stroke 0.25s ease-in-out; stroke-linecap: round; }
+  .needle-shadow { stroke: rgba(0,0,0,0.08); stroke-width: 8; transform-origin: 270px 250px; stroke-linecap: round; }
+  .center-cap { fill: rgba(55,71,79,0.6); }
+
+  .tick-label { font-size: 14px; fill: #263238; text-anchor: middle; font-weight: 500; }
+  .tick-line { stroke: #263238; stroke-width: 2; stroke-linecap: round; }
+  .tick-major { stroke-width: 3; }
+
+  #rateValue { margin-top: 12px; font-weight:700; font-size:1.1rem; color: #263238; }
+
+  @media (max-width: 760px) {
+    .gauge-container { width: 92%; }
+    .depth-track { width: 48px; max-width: 48px; }
+    .tick-label { font-size: 10px; }
+    .panel { padding: 12px; }
+  }
+
+.stats-box {
+  background: rgba(255,255,255,0.15);
+  border-radius: 14px;
+  padding: 12px;
+  box-shadow: 0 12px 40px rgba(0,0,0,0.12);
+  transition: background 0.3s ease-in-out;
+}
+.stats-grid {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 6px;
+}
+.stats-grid strong {
+  transition: color 0.5s ease, background 0.5s ease;
+}
+.color-green { color: #388e3c; }
+.color-yellow { color: #fbc02d; }
+.color-red { color: #d32f2f; }
+
+
+.stats-bar {
+  position: fixed;
+  bottom: 10px;
+  left: 50%;
+  transform: translateX(-50%);
+  display: flex;
+  justify-content: space-around;
+  align-items: center;
+  width: 90%;
+  max-width: 800px;
+  background: rgba(255, 255, 255, 0.2);
+  backdrop-filter: blur(12px);
+  border-radius: 14px;
+  padding: 8px 12px;
+  font-weight: bold;
+  box-shadow: 0 8px 20px rgba(0,0,0,0.15);
+}
+.stats-bar .stat {
+  text-align: center;
+  flex: 1;
+}
+.stats-bar .label {
+  font-size: 0.75rem;
+  opacity: 0.8;
+  display: block;
+  font-weight: normal;
+}
+.color-green { color: #388e3c; }
+.color-yellow { color: #fbc02d; }
+.color-red { color: #d32f2f; }
+
+</style>
+</head>
+<body>
+
+<!-- Header: branding + logout -->
+<div class="app-header">
+  <div class="branding">
+    <img src="icon.png" alt="logo" style="width:36px;height:36px;border-radius:8px;"/>
+    JEEVTRONICS 
+  </div>
+  <button id="logoutBtn">Logout</button>
+</div>
+
+<!-- Title & status -->
+<h2 style="color:white; margin-top:6px;">CPR.AI <span class="status-dot" id="statusDot"></span></h2>
+
+<!-- Controls (panel) -->
+<div class="panel" style="text-align:center;">
+  <div class="controls">
+    <button id="connectBtn" class="btn">Connect</button>
+    <button id="disconnectBtn" class="btn">Disconnect</button>
+  </div>
+
+  <div style="margin-top:8px;">
+    <input id="traineeName" placeholder="Enter trainee name" />
+    <button id="startTrainingBtn" class="btn">Start Training</button>
+    <button id="stopTrainingBtn" class="btn">Stop Training</button>
+    <button id="downloadBtn" class="btn">Download CSV</button>
+    <button id="nextSessionBtn" class="btn" style="background:#66bb6a;color:white;display:none;">Start Next Session</button>
+  </div>
+</div>
+
+<!-- Top half: depth panel -->
+<div class="panel" aria-hidden="false">
+  <div class="depth-wrapper">
+    <div id="depthValue" class="depth-value">Depth: 0.0 mm</div>
+    <div class="depth-track" role="img" aria-label="Depth bar">
+      <div id="depthFill" class="depth-fill" style="height:0%"></div>
+    </div>
+  </div>
+</div>
+
+<!-- Hidden legacy segments (kept for compatibility) -->
+<div id="legacySegmentsHolder" style="display:none">
+  <div class="segments" id="segmentsContainer" aria-hidden="true"></div>
+</div>
+
+<!-- Lower half: gauge panel -->
+<div class="panel">
+  <div class="gauge-container" aria-hidden="false">
+    <svg viewBox="0 0 540 320" role="img" aria-label="CPR Rate Gauge">
+      <defs>
+        <linearGradient id="gaugeGradient" x1="0%" y1="0%" x2="100%" y2="0%">
+          <stop offset="0%" stop-color="#d32f2f"/>
+          <stop offset="33.333%" stop-color="#d32f2f"/>
+          <stop offset="33.333%" stop-color="#fbc02d"/>
+          <stop offset="66.666%" stop-color="#fbc02d"/>
+          <stop offset="66.666%" stop-color="#388e3c"/>
+          <stop offset="100%" stop-color="#388e3c"/>
+        </linearGradient>
+
+        <radialGradient id="gloss" cx="50%" cy="30%" r="70%">
+          <stop offset="0%" stop-color="rgba(255,255,255,0.18)" />
+          <stop offset="60%" stop-color="rgba(255,255,255,0.06)" />
+          <stop offset="100%" stop-color="rgba(255,255,255,0.0)" />
+        </radialGradient>
+      </defs>
+
+      <path d="M 80 250 A 190 190 0 0 1 460 250"
+            stroke="url(#gaugeGradient)"
+            stroke-width="22"
+            fill="none"
+            stroke-linecap="round"/>
+
+      <g id="ticks"></g>
+
+      <line id="needleShadow" x1="270" y1="250" x2="270" y2="90" class="needle-shadow"/>
+
+      <line id="needle" x1="270" y1="250" x2="270" y2="90" class="needle" stroke="#37474f"/>
+      <circle cx="270" cy="250" r="10" class="center-cap"/>
+
+      <rect x="60" y="20" width="420" height="240" rx="24" ry="24" fill="url(#gloss)" opacity="0.08" />
+    </svg>
+
+    <div id="rateValue" style="position:absolute;top:40px;width:100%;text-align:center;font-weight:bold;font-size:1.2rem;">Rate: 0 CPM</div>
+  </div>
+</div>
+
+<script>
+/* ===== LOGIN CHECK (must be first) ===== */
+if (localStorage.getItem('isLoggedIn') !== 'true') {
+  window.location.href = 'login.html';
+}
+
+/* ---------- Constants & UI refs ---------- */
+const SERVICE_UUID = '6e400001-c352-11e5-953d-0002a5d5c51b';
+const CHARACTERISTIC_UUID = '6e400003-c352-11e5-953d-0002a5d5c51b';
+
+const cx = 270, cy = 250, r = 190; // gauge geometry used for tick math
+const maxRate = 120;
+
+const connectBtn = document.getElementById('connectBtn');
+const disconnectBtn = document.getElementById('disconnectBtn');
+const startTrainingBtn = document.getElementById('startTrainingBtn');
+const stopTrainingBtn = document.getElementById('stopTrainingBtn');
+const downloadBtn = document.getElementById('downloadBtn');
+const traineeNameInput = document.getElementById('traineeName');
+const nextSessionBtn = document.getElementById('nextSessionBtn');
+const statusDot = document.getElementById('statusDot');
+const ticksGroup = document.getElementById('ticks');
+const needle = document.getElementById('needle');
+const needleShadow = document.getElementById('needleShadow');
+
+const depthValueEl = document.getElementById('depthValue');
+const depthFill = document.getElementById('depthFill');
+const segmentsContainer = document.getElementById('segmentsContainer');
+const rateValueEl = document.getElementById('rateValue');
+
+let device = null;
+let characteristic = null;
+let logging = false;
+let traineeName = "";
+let sessionData = []; // will hold {trainee, time, rate, peaks, depth}
+
+/* ---------- Draw gauge ticks & labels (0..120 every 10) ---------- */
+function drawTicks() {
+  while (ticksGroup.firstChild) ticksGroup.removeChild(ticksGroup.firstChild);
+
+  for (let v = 0; v <= maxRate; v += 10) {
+    const f = v / maxRate;
+    // angle 180..360
+    const angleDeg = 180 + f * 180;
+    const rad = angleDeg * Math.PI / 180;
+
+    const tickOuter = r;
+    const tickLen = (v % 20 === 0) ? 24 : 12;
+    const tickInner = r - tickLen;
+
+    const x1 = cx + tickOuter * Math.cos(rad);
+    const y1 = cy + tickOuter * Math.sin(rad);
+    const x2 = cx + tickInner * Math.cos(rad);
+    const y2 = cy + tickInner * Math.sin(rad);
+
+    const tick = document.createElementNS("http://www.w3.org/2000/svg","line");
+    tick.setAttribute("x1", x1.toFixed(2));
+    tick.setAttribute("y1", y1.toFixed(2));
+    tick.setAttribute("x2", x2.toFixed(2));
+    tick.setAttribute("y2", y2.toFixed(2));
+    tick.setAttribute("class", "tick-line");
+    if (v % 20 === 0) tick.classList.add('tick-major');
+    ticksGroup.appendChild(tick);
+
+    // label
+    const labelRadius = r - 48;
+    const lx = cx + labelRadius * Math.cos(rad);
+    const ly = cy + labelRadius * Math.sin(rad);
+    const txt = document.createElementNS("http://www.w3.org/2000/svg","text");
+    txt.setAttribute("x", lx.toFixed(2));
+    txt.setAttribute("y", (ly+6).toFixed(2));
+    txt.setAttribute("class", "tick-label");
+    txt.textContent = v;
+    ticksGroup.appendChild(txt);
+  }
+}
+
+/* ---------- Construct segmented depth bar (kept for compatibility) ---------- */
+const SEGMENTS = 12;
+function buildSegments() {
+  if (!segmentsContainer) return;
+  segmentsContainer.innerHTML = '';
+  for (let i=0;i<SEGMENTS;i++){
+    const seg = document.createElement('div');
+    seg.className = 'segment';
+    const inner = document.createElement('div');
+    inner.className = 'segment-inner';
+    inner.style.width = '0%';
+    seg.appendChild(inner);
+    segmentsContainer.appendChild(seg);
+  }
+}
+
+/* ---------- Needle update for rate (zones: <40 red, 40-80 yellow, >80 green) ---------- */
+function updateNeedle(rate) {
+  const limited = Math.max(0, Math.min(rate, maxRate));
+  const angleDeg = 180 + (limited / maxRate) * 180; // 180 -> 360
+  const rotation = angleDeg - 270; // transform relative to initial up
+  needle.style.transform = `rotate(${rotation}deg)`;
+  needleShadow.style.transform = `rotate(${rotation}deg)`;
+
+  // color needle and update rate label according to zones
+  let zoneColor = '#d32f2f';
+  if (rate < 40) {
+    zoneColor = '#d32f2f';
+  } else if (rate <= 80) {
+    zoneColor = '#fbc02d';
+  } else {
+    zoneColor = '#388e3c';
+  }
+  needle.setAttribute('stroke', zoneColor);
+  if (rateValueEl) {
+    rateValueEl.style.color = zoneColor;
+    rateValueEl.textContent = `Rate: ${Number(rate).toFixed(1)} CPM`;
+  }
+}
+
+/* ---------- Map peaks -> depth (original heuristic kept) ---------- */
+function mapPeaksToDepth(peaks) {
+  // enforce integer
+  const p = Math.max(0, Math.min(999, Math.floor(peaks)));
+  let depth = 0;
+  let zone = 'red';
+  if (p <= 1) {
+    depth = 15 + Math.random()*10; // 15..25
+    zone = 'red';
+  } else if (p === 2) {
+    depth = 30 + Math.random()*10; // 30..40
+    zone = 'yellow';
+  } else {
+    // 3..5 and above assumed map to deep range
+    depth = 45 + Math.random()*15; // 45..60
+    zone = 'green';
+  }
+  // cap 0..60
+  depth = Math.max(0, Math.min(60, depth));
+  return { depth: parseFloat(depth.toFixed(1)), zone };
+}
+
+/* ---------- Update continuous depth bar from depth ---------- */
+function updateDepthBar(depthObj) {
+  const depth = depthObj.depth;
+  const zone = depthObj.zone || 'red';
+
+  // Update smooth vertical fill (0..60 mm mapped to 0..100%)
+  const percent = (depth / 60) * 100;
+  depthFill.style.height = percent + '%';
+
+  // color depth text according to zone
+  const zoneColor = zone === 'green' ? '#388e3c' : (zone === 'yellow' ? '#fbc02d' : '#d32f2f');
+  depthValueEl.textContent = `Depth: ${depth.toFixed(1)} mm`;
+  depthValueEl.style.color = zoneColor;
+
+  // Also update legacy segments if present (kept for fallback)
+  if (segmentsContainer && segmentsContainer.children.length > 0) {
+    const fillSegments = Math.round((depth / 60) * SEGMENTS);
+    const segs = Array.from(segmentsContainer.children);
+    for (let i=0;i<SEGMENTS;i++){
+      const inner = segs[i].firstChild;
+      if (i < fillSegments) {
+        inner.style.width = '100%';
+        inner.style.background = zoneColor;
+        inner.style.boxShadow = `0 4px 10px ${hexToRGBA(zoneColor,0.18)}`;
+        segs[i].style.transform = 'translateY(-2px)';
+      } else {
+        inner.style.width = '0%';
+        inner.style.background = 'transparent';
+        segs[i].style.transform = 'translateY(0px)';
+      }
+    }
+  }
+}
+
+/* small helper to get rgba from hex */
+function hexToRGBA(hex, alpha){
+  hex = hex.replace('#','');
+  if (hex.length === 3) hex = hex.split('').map(h=>h+h).join('');
+  const r = parseInt(hex.slice(0,2),16);
+  const g = parseInt(hex.slice(2,4),16);
+  const b = parseInt(hex.slice(4,6),16);
+  return `rgba(${r},${g},${b},${alpha})`;
+}
+
+/* ---------- Bluetooth notification handler (robust) ---------- */
+/* Expected example:
+   "CPR RATE: 65.0 cpm and Peaks in last 2s: 3"
+*/
+function handleNotification(raw) {
+  if (!raw || typeof raw !== 'string') return;
+
+  // Normalize line endings into spaces
+  const norm = raw.split('\r').join('').split('\n').join(' ');
+  const up = norm.toUpperCase();
+
+  // Parse rate (look for 'CPR RATE:')
+  let rate = null;
+  const rateLabel = 'CPR RATE:';
+  const ratePos = up.indexOf(rateLabel);
+  if (ratePos !== -1) {
+    let substr = norm.substring(ratePos + rateLabel.length);
+    const cpmPos = substr.toUpperCase().indexOf('CPM');
+    if (cpmPos !== -1) substr = substr.substring(0, cpmPos);
+    // extract first numeric token (digits and dot)
+    let numStr = '';
+    for (let i=0;i<substr.length;i++){
+      const ch = substr[i];
+      if ((ch >= '0' && ch <= '9') || ch === '.') numStr += ch;
+      else if (numStr.length > 0) break;
+    }
+    if (numStr.length > 0) rate = parseFloat(numStr);
+  }
+
+  // Parse peaks (look for 'PEAKS IN LAST 2S:')
+  let peaks = null;
+  const peaksLabel = 'PEAKS IN LAST 2S:';
+  const peaksPos = up.indexOf(peaksLabel);
+  if (peaksPos !== -1) {
+    let substr = norm.substring(peaksPos + peaksLabel.length);
+    // extract first integer from substr
+    let numStr = '';
+    for (let i=0;i<substr.length;i++){
+      const ch = substr[i];
+      if (ch >= '0' && ch <= '9') numStr += ch;
+      else if (numStr.length > 0) break;
+    }
+    if (numStr.length > 0) peaks = parseInt(numStr, 10);
+  }
+
+  if (rate !== null) updateNeedle(rate);
+  if (rate !== null && peaks !== null) {
+    updateStats();
+    const depthObj = mapPeaksToDepth(peaks);
+    updateDepthBar(depthObj);
+    if (logging) {
+      sessionData.push({
+        trainee: traineeName,
+        time: new Date().toISOString(),
+        rate: rate,
+        peaks: peaks,
+        depth: depthObj.depth
+      });
+    }
+  }
+}
+
+/* ---------- BLUETOOTH + training flow (unchanged) ---------- */
+connectBtn.addEventListener('click', async () => {
+  try {
+    device = await navigator.bluetooth.requestDevice({
+      filters: [{ namePrefix: 'Proteus' }],
+      optionalServices: [SERVICE_UUID]
+    });
+    const server = await device.gatt.connect();
+    const service = await server.getPrimaryService(SERVICE_UUID);
+    characteristic = await service.getCharacteristic(CHARACTERISTIC_UUID);
+
+    characteristic.addEventListener('characteristicvaluechanged', event => {
+      // decode notification chunk
+      const raw = new TextDecoder().decode(event.target.value);
+      // pass raw to handler; handler will normalize safely
+      handleNotification(raw);
+    });
+
+    await characteristic.startNotifications();
+
+    statusDot.style.background = '#388e3c';
+    connectBtn.style.display = 'none';
+    disconnectBtn.style.display = 'inline-block';
+    traineeNameInput.style.display = 'inline-block';
+    startTrainingBtn.style.display = 'inline-block';
+    downloadBtn.style.display = 'none';
+    stopTrainingBtn.style.display = 'none';
+
+  } catch (err) {
+    alert('Bluetooth Error: ' + (err && err.message ? err.message : err));
+  }
+});
+
+disconnectBtn.addEventListener('click', async () => {
+  if (device && device.gatt && device.gatt.connected) {
+    await device.gatt.disconnect();
+  }
+  statusDot.style.background = '#d32f2f';
+  connectBtn.style.display = 'inline-block';
+  disconnectBtn.style.display = 'none';
+  traineeNameInput.style.display = 'none';
+  startTrainingBtn.style.display = 'none';
+  stopTrainingBtn.style.display = 'none';
+  downloadBtn.style.display = 'none';
+  logging = false;
+  sessionData = [];
+});
+
+/* Training flow: start/stop logging (connection remains) */
+startTrainingBtn.addEventListener('click', () => {
+  const name = traineeNameInput.value.trim();
+  if (!name) { alert('Please enter trainee name.'); return; }
+  traineeName = name;
+  logging = true;
+  sessionData = [];             // clear previous session
+  traineeNameInput.style.display = 'none';
+  startTrainingBtn.style.display = 'none';
+  stopTrainingBtn.style.display = 'inline-block';
+  downloadBtn.style.display = 'none';
+});
+
+stopTrainingBtn.addEventListener('click', () => {
+  logging = false;
+  stopTrainingBtn.style.display = 'none';
+  if (sessionData.length > 0) {
+    downloadBtn.style.display = 'inline-block';
+    nextSessionBtn.style.display = 'inline-block'; // Show new session button
+  }
+
+  logging = false;
+  stopTrainingBtn.style.display = 'none';
+  if (sessionData.length > 0) downloadBtn.style.display = 'inline-block';
+});
+
+/* CSV export updated to include peaks & depth (fixed escapes) */
+downloadBtn.addEventListener('click', () => {
+  if (sessionData.length === 0) {
+    alert('No data to download.');
+    return;
+  }
+
+  const newline = '\n';
+  // header
+  let csv = 'Trainee Name,Time,CPR Rate,Peaks,Depth(mm)' + newline;
+  sessionData.forEach(r => {
+    csv += `${escapeCsv(r.trainee)},${r.time},${r.rate},${r.peaks},${r.depth}` + newline;
+  });
+
+  // summary (rate & depth)
+  const rates = sessionData.map(r=>r.rate);
+  const depths = sessionData.map(r=>r.depth);
+  const avgRate = (rates.reduce((a,b)=>a+b,0)/rates.length).toFixed(2);
+  const minRate = Math.min(...rates).toFixed(2);
+  const maxRate = Math.max(...rates).toFixed(2);
+  const avgDepth = (depths.reduce((a,b)=>a+b,0)/depths.length).toFixed(2);
+  const minDepth = Math.min(...depths).toFixed(2);
+  const maxDepth = Math.max(...depths).toFixed(2);
+  const inTargetCount = sessionData.filter(r=> r.rate>=100 && r.rate<=120).length;
+  const pctInTarget = ((inTargetCount/sessionData.length)*100).toFixed(1);
+
+  csv += newline + 'Summary,,,' + newline;
+  csv += `Avg Rate,${avgRate},Min Rate,${minRate}` + newline;
+  csv += `Max Rate,${maxRate},% In 100-120 CPM,${pctInTarget}%` + newline;
+  csv += `Avg Depth,${avgDepth},Min Depth,${minDepth}` + newline;
+  csv += `Max Depth,${maxDepth},,` + newline;
+
+  const blob = new Blob([csv], { type: 'text/csv' });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = `${traineeName || 'trainee'}_cpr_session.csv`;
+  document.body.appendChild(a);
+  a.click();
+  a.remove();
+  URL.revokeObjectURL(url);
+});
+
+function escapeCsv(val) {
+  if (typeof val !== 'string') return val;
+  if (val.indexOf(',') !== -1 || val.indexOf('"') !== -1 || val.indexOf('\n') !== -1) {
+    return '"' + val.split('"').join('""') + '"';
+  }
+  return val;
+}
+
+/* ---------- Init UI on load ---------- */
+drawTicks();
+buildSegments();
+updateNeedle(0); // start needle at 0 CPM
+if (rateValueEl) rateValueEl.textContent = 'Rate: 0 CPM';
+
+/* ---------- Logout handler (already present in header) ---------- */
+document.getElementById('logoutBtn').addEventListener('click', () => {
+  localStorage.removeItem('isLoggedIn');
+  // optional: clear loginTime if you stored it
+  // localStorage.removeItem('loginTime');
+  window.location.href = 'login.html';
+});
+
+/* ---------- Register PWA service worker (unchanged but caches should include login.html too) ---------- */
+if ('serviceWorker' in navigator) {
+  navigator.serviceWorker.register('service-worker.js')
+    .then(()=>console.log('Service Worker Registered'))
+    .catch(err=>console.warn('SW failed', err));
+}
+
+// === Added Features ===
+document.addEventListener('DOMContentLoaded', () => {
+  const historyBtn = document.createElement('button');
+  historyBtn.textContent = 'Past Sessions';
+  historyBtn.className = 'btn';
+  historyBtn.style.background = '#66bb6a';
+  historyBtn.style.color = 'white';
+  historyBtn.style.marginLeft = '8px';
+  historyBtn.style.display = 'none';
+  document.querySelector('.app-header').appendChild(historyBtn);
+
+  // Show if history exists on load
+  if (localStorage.getItem('cprHistory') && JSON.parse(localStorage.getItem('cprHistory')).length > 0) {
+    historyBtn.style.display = 'inline-block';
+  }
+
+  historyBtn.addEventListener('click', () => {
+    renderHistoryTable();
+    document.getElementById('historyModal').style.display = 'block';
+  });
+
+  // When a session ends
+  window.showHistoryButton = function() {
+    historyBtn.style.display = 'inline-block';
+  };
+});
+
+
+function updateStats() {
+    if (sessionData.length === 0) return;
+    const rates = sessionData.map(r=>r.rate);
+    const depths = sessionData.map(r=>r.depth);
+    const avgRate = (rates.reduce((a,b)=>a+b,0)/rates.length).toFixed(1);
+    const minRate = Math.min(...rates).toFixed(1);
+    const maxRate = Math.max(...rates).toFixed(1);
+    const avgDepth = (depths.reduce((a,b)=>a+b,0)/depths.length).toFixed(1);
+    const minDepth = Math.min(...depths).toFixed(1);
+    const maxDepth = Math.max(...depths).toFixed(1);
+
+    function colorForRate(rate) { if (rate>=100&&rate<=120) return 'color-green'; if (rate>=80) return 'color-yellow'; return 'color-red'; }
+    function colorForDepth(depth) { if (depth>=50) return 'color-green'; if (depth>=40) return 'color-yellow'; return 'color-red'; }
+
+    [['statAvgRate', avgRate, colorForRate(avgRate)],
+     ['statMinRate', minRate, colorForRate(minRate)],
+     ['statMaxRate', maxRate, colorForRate(maxRate)],
+     ['statAvgDepth', avgDepth, colorForDepth(avgDepth)],
+     ['statMinDepth', minDepth, colorForDepth(minDepth)],
+     ['statMaxDepth', maxDepth, colorForDepth(maxDepth)]
+    ].forEach(([id,val,color]) => {
+      const el = document.getElementById(id);
+      if (el) {
+        el.textContent = val;
+        el.className = color;
+      }
+    });
+}
+
+
+document.getElementById('historyBtn').addEventListener('click', () => {
+    let history = JSON.parse(localStorage.getItem('cprHistory') || '[]');
+    if (history.length === 0) {
+        document.getElementById('historyTableContainer').innerHTML = '<p>No past sessions found.</p>';
+    } else {
+        let html = '<table style="width:100%;border-collapse:collapse;">';
+        html += '<tr><th>Date</th><th>Trainee</th><th>Avg Rate</th><th>Avg Depth</th><th>% Target</th><th>Download</th></tr>';
+        history.forEach((h,i) => {
+            html += `<tr>
+              <td>${new Date(h.date).toLocaleString()}</td>
+              <td>${h.trainee}</td>
+              <td>${h.avgRate}</td>
+              <td>${h.avgDepth}</td>
+              <td>${h.pctInTarget}%</td>
+              <td><button onclick="downloadHistoryCSV(${i})">CSV</button></td>
+            </tr>`;
+        });
+        html += '</table>';
+        document.getElementById('historyTableContainer').innerHTML = html;
+    }
+    document.getElementById('historyPanel').style.display = 'block';
+});
+
+
+
+// Handle Start Next Session button click
+nextSessionBtn.addEventListener('click', () => {
+  sessionData = [];
+  traineeName = "";
+  traineeNameInput.value = "";
+  traineeNameInput.style.display = 'inline-block';
+  startTrainingBtn.style.display = 'inline-block';
+  downloadBtn.style.display = 'none';
+  nextSessionBtn.style.display = 'none';
+});
+</script>
+
+
+    
+</div>
+
+
+
+
+
+
+
+
+<div class="stats-bar">
+  <div class="stat"><span id="statAvgRate" class="color-red">--</span><span class="label">Avg Rate</span></div>
+  <div class="stat"><span id="statMinRate" class="color-red">--</span><span class="label">Min Rate</span></div>
+  <div class="stat"><span id="statMaxRate" class="color-red">--</span><span class="label">Max Rate</span></div>
+  <div class="stat"><span id="statAvgDepth" class="color-red">--</span><span class="label">Avg Depth</span></div>
+  <div class="stat"><span id="statMinDepth" class="color-red">--</span><span class="label">Min Depth</span></div>
+  <div class="stat"><span id="statMaxDepth" class="color-red">--</span><span class="label">Max Depth</span></div>
+</div>
+
+
+<div id="historyPanel" style="display:none;position:fixed;top:0;right:0;width:320px;height:100%;background:white;z-index:999;padding:16px;overflow:auto;box-shadow:-4px 0 12px rgba(0,0,0,0.2);">
+  <h3>Past Sessions</h3>
+  <div id="historyTableContainer"></div>
+  <button id="clearHistoryBtn" class="btn" style="background:#d32f2f;color:white;margin-top:8px;">Clear History</button>
+  <button onclick="document.getElementById('historyPanel').style.display='none';" class="btn" style="margin-top:8px;">Close</button>
+</div>
+
+</body>
+</html>

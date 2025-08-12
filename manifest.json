@@ -1,0 +1,21 @@
+{
+  "name": "Jeevtronics CPR Interface",
+  "short_name": "Jeevtronics CPR",
+  "start_url": "login.html",
+  "display": "standalone",
+  "background_color": "#2e7d32",
+  "theme_color": "#2e7d32",
+  "description": "CPR training sensor app with Bluetooth connection, real-time gauge, trainee logging, and CSV export.",
+  "icons": [
+    {
+      "src": "icon.png",
+      "sizes": "192x192",
+      "type": "image/png"
+    },
+    {
+      "src": "icon.png",
+      "sizes": "512x512",
+      "type": "image/png"
+    }
+  ]
+}
